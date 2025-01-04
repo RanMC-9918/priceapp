@@ -7,6 +7,7 @@ export default {
     background: '#fff',
     tint: tintColorLight,
     tabIconDefault: '#ccc',
+    secondary: '#eee',
     tabIconSelected: tintColorLight,
   },
   dark: {
@@ -15,5 +16,5 @@ export default {
     tint: tintColorDark,
     tabIconDefault: '#ccc',
     tabIconSelected: tintColorDark,
-  },
+  }
 };
