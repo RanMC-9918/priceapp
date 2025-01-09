@@ -1,12 +1,13 @@
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, useColorScheme } from "react-native";
 
 import {
-  Text,
-  View,
+  View as Flat,
   FlatList,
   Button,
-  TextInput
+  KeyboardAvoidingView,
 } from "react-native";
+
+import { Text, View, TextInput } from "@/components/Themed";
 
 import { useState, useEffect } from "react";
 
@@ -14,14 +15,16 @@ import ProductList from "@/components/ProductList";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-let storage:{getItem:Function, removeItem:Function, setItem:Function} = AsyncStorage;
-
+let storage: { getItem: Function; removeItem: Function; setItem: Function } =
+  AsyncStorage;
 
 import { product } from "@/constants/types";
 
 import medicines from "@/constants/medicines";
 
-storage.removeItem("medicine");
+import { EventRegister } from "react-native-event-listeners";
+
+//storage.removeItem("medicine");
 
 export default function TabOneScreen() {
   let [medicine, setMedicine] = useState<product[]>([]);
@@ -51,18 +54,35 @@ export default function TabOneScreen() {
     loadMedicine();
   }, []);
 
+  useEffect(() => {
+    const ans = medicine.reduce(
+      (total: number, item: product) => (total += item.price),
+      0
+    );
+    setTotal(ans);
+  }, [medicine]);
+
+  useEffect(() => {
+    EventRegister.addEventListener("removeMedicine", (prod: product) => {
+      const ans = medicine.filter((med) => med.id !== prod.id);
+      setMedicine(ans);
+      storage.setItem("medicine", JSON.stringify(ans));
+    });
+  });
+
   async function addMedicine(name: string, price: number) {
     try {
       let res = await AsyncStorage.getItem("medicine");
       if (res) {
         let ans: product[] = JSON.parse(res);
-        ans.push({ name, price });
+        let ansLength = ans.length;
+        ans.push({ name, price, id: ans[ansLength - 1].id + 1 });
         //console.log(ans);
         setMedicine(ans);
         setTotal((prevTotal) => prevTotal + price);
         AsyncStorage.setItem("medicine", JSON.stringify(ans));
       } else {
-        let ans: product[] = [{ name, price }];
+        let ans: product[] = [{ name, price, id: 1 }];
         setMedicine(ans);
         setTotal(price);
         AsyncStorage.setItem("medicine", JSON.stringify(ans));
@@ -75,7 +95,12 @@ export default function TabOneScreen() {
   function calculatePrice(name: string) {
     if (name) {
       setNewMedicine(name);
-      setNewPrice(10);
+      if (newPrice == 0) {
+        const ans = medicines.find(
+          (med) => med.name.toLowerCase() === name.toLowerCase()
+        )?.price;
+        ans && setNewPrice(ans);
+      }
     } else {
       setNewMedicine("");
       setNewPrice(0);
@@ -84,43 +109,64 @@ export default function TabOneScreen() {
 
   //console.log(medicine);
 
+  const colors = useColorScheme();
+
   return (
-    <View style={styles.full}>
+    <Flat style={{ backgroundColor: "#00000000", flex: 1 }}>
       <View style={styles.total}>
         <Text style={styles.total}>Total:</Text>
         <Text style={styles.total}>${total}</Text>
       </View>
-      <View style={styles.header}>
-        <Text style={styles.title}>Your Charges</Text>
-        <FlatList
-          style={styles.charges}
-          data={medicine}
-          renderItem={({ item }) => (
-            <ProductList name={item.name} price={item.price} />
-          )}
-        />
-      </View>
-
-      <View style={styles.newCharge}>
-        <View style={styles.inputNewCharge}>
-          <TextInput
-            style={[styles.total, styles.input]}
-            placeholder="Product Name"
-            value={newMedicine}
-            onChangeText={(req) => calculatePrice(req)}
+      <KeyboardAvoidingView
+        behavior="padding"
+        keyboardVerticalOffset={90}
+        style={styles.keyboardAList}
+      >
+        <Flat
+          style={{
+            backgroundColor: colors === "light" ? "white" : "black",
+            flex: 1,
+          }}
+        >
+          <Text style={styles.title}>Your Charges</Text>
+          <FlatList
+            data={medicine}
+            renderItem={({ item }) => <ProductList prod={item} />}
+            keyExtractor={(item) => item.id.toString()}
+            style={{ flex: 1 }}
           />
-          <Text style={styles.total}>${newPrice}</Text>
-        </View>
+        </Flat>
 
-        <View style={styles.inputNewCharge}>
-          <Button title="Clear" onPress={() => calculatePrice("")} />
-          <Button
-            title="Enter"
-            onPress={() => addMedicine(newMedicine, newPrice)}
-          />
+        <View style={styles.newCharge}>
+          <View style={styles.inputNewCharge}>
+            <TextInput
+              style={[styles.total, styles.input]}
+              placeholder="Product Name"
+              value={newMedicine}
+              onChangeText={(req) => calculatePrice(req)}
+            />
+            <TextInput
+              style={[styles.total, styles.price]}
+              placeholder="$0"
+              value={`$${newPrice}`}
+              keyboardType="number-pad"
+              onChangeText={(req) => {
+                const p = req.replace(/[^0-9]/g, "");
+                setNewPrice(Number(p));
+              }}
+            />
+          </View>
+
+          <View style={styles.inputNewCharge}>
+            <Button title="Clear" onPress={() => calculatePrice("")} />
+            <Button
+              title="Enter"
+              onPress={() => addMedicine(newMedicine, newPrice)}
+            />
+          </View>
         </View>
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </Flat>
   );
 }
 
@@ -140,10 +186,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 10,
-    backgroundColor: "red",
-  },
-  charges: {
-    height: "70%",
   },
   newCharge: {
     fontSize: 20,
@@ -152,11 +194,9 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     paddingHorizontal: 10,
-    backgroundColor: "red",
-    position: "absolute",
     width: "100%",
-    bottom: 0,
   },
+  price: {},
   full: {
     height: "100%",
   },
@@ -171,5 +211,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 10,
+  },
+  keyboardAList: {
+    flex: 1,
+    flexDirection: "column",
   },
 });
