@@ -3,10 +3,16 @@
  * https://docs.expo.io/guides/color-schemes/
  */
 
-import { Text as DefaultText, View as DefaultView, TextInput as DefaultTextInput } from "react-native";
+import {
+  Text as DefaultText,
+  View as DefaultView,
+  TextInput as DefaultTextInput,
+} from "react-native";
 
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "./useColorScheme";
+
+import { FontAwesome as DefaultFontAwesome } from "@expo/vector-icons";
 
 type ThemeProps = {
   lightColor?: string;
@@ -16,7 +22,7 @@ type ThemeProps = {
 export type TextProps = ThemeProps & DefaultText["props"];
 export type ViewProps = ThemeProps & DefaultView["props"];
 export type TextInputProps = ThemeProps & DefaultTextInput["props"];
-
+export type FontAwesomeProps = ThemeProps & DefaultText["props"] & any;
 export function useThemeColor(
   props: { light?: string; dark?: string },
   colorName: keyof typeof Colors.light & keyof typeof Colors.dark
@@ -56,5 +62,17 @@ export function TextInput(props: TextInputProps) {
   );
   const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
 
-  return <DefaultTextInput style={[{ backgroundColor }, {color}, style]} {...otherProps} />;
+  return (
+    <DefaultTextInput
+      style={[{ backgroundColor }, { color }, style]}
+      {...otherProps}
+    />
+  );
+}
+
+export function FontAwesome(props: FontAwesomeProps) {
+  const { style, lightColor, darkColor, ...otherProps } = props;
+  const color = useThemeColor({ light: lightColor, dark: darkColor }, "text");
+
+  return <DefaultFontAwesome style={[{ color }, style]} {...otherProps} />;
 }
